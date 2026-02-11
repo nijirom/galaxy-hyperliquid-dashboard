@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galaxy Digital — Hyperliquid Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0b0e14;
+    --surface:  #131720;
+    --border:   #1e2533;
+    --text:     #e1e4ea;
+    --muted:    #6b7280;
+    --accent:   #6366f1;
+    --green:    #22c55e;
+    --red:      #ef4444;
+    --amber:    #f59e0b;
+    --blue:     #3b82f6;
+    --cyan:     #06b6d4;
+    --radius:   12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ───────────────────────────────────────────────────────── */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 28px;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .logo h1 span { color: var(--accent); }
+  .logo .tag {
+    font-size: .7rem;
+    background: rgba(99,102,241,.15);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: .82rem;
+    color: var(--muted);
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 2s infinite;
+    margin-right: 4px;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+  }
+
+  /* ── Cards grid ───────────────────────────────────────────────────── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .card.spot::before  { background: var(--green); }
+  .card.perp::before  { background: var(--red); }
+  .card.delta::before { background: var(--accent); }
+  .card.status::before { background: var(--amber); }
+  .card.funding::before { background: var(--cyan); }
+
+  .card-label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .card-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .card-value.positive { color: var(--green); }
+  .card-value.negative { color: var(--red); }
+  .card-sub {
+    font-size: .78rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+  .badge.hedged   { background: rgba(34,197,94,.12); color: var(--green); }
+  .badge.unhedged { background: rgba(239,68,68,.12); color: var(--red); }
+
+  /* ── Charts ───────────────────────────────────────────────────────── */
+  .charts {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 900px) {
+    .charts { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .panel-title {
+    font-size: .85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .chart-wrap.bar { height: 320px; }
+  .chart-wrap.doughnut { height: 280px; }
+
+  /* ── Table ─────────────────────────────────────────────────────────── */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .84rem;
+  }
+  thead th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  tbody tr:hover { background: rgba(99,102,241,.04); }
+  .type-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+  .type-badge.SPOT { background: rgba(34,197,94,.12); color: var(--green); }
+  .type-badge.PERP { background: rgba(239,68,68,.12); color: var(--red); }
+
+  /* ── Loading overlay ──────────────────────────────────────────────── */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    gap: 16px;
+    transition: opacity .4s;
+  }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { color: var(--muted); font-size: .9rem; }
+
+  /* ── Footer ───────────────────────────────────────────────────────── */
+  footer {
+    text-align: center;
+    padding: 20px 0;
+    color: var(--muted);
+    font-size: .78rem;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Connecting to Hyperliquid…</p>
+</div>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <h1>Galaxy <span>Digital</span></h1>
+      <span class="tag">Hyperliquid</span>
+    </div>
+    <div class="meta">
+      <span><span class="live-dot"></span> LIVE</span>
+      <span id="last-updated">—</span>
+    </div>
+  </header>
+
+  <!-- Summary Cards -->
+  <section class="cards">
+    <div class="card spot">
+      <div class="card-label">Spot Exposure</div>
+      <div class="card-value positive" id="card-spot">—</div>
+    </div>
+    <div class="card perp">
+      <div class="card-label">Perp Exposure</div>
+      <div class="card-value negative" id="card-perp">—</div>
+    </div>
+    <div class="card delta">
+      <div class="card-label">Net Delta</div>
+      <div class="card-value" id="card-delta">—</div>
+    </div>
+    <div class="card status">
+      <div class="card-label">Hedge Status</div>
+      <div id="card-status">—</div>
+    </div>
+    <div class="card funding">
+      <div class="card-label">Funding Yield (24h)</div>
+      <div class="card-value" id="card-funding">—</div>
+      <div class="card-sub" id="card-positions">— positions tracked</div>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section class="charts">
+    <div class="panel">
+      <div class="panel-title">Exposure by Coin</div>
+      <div class="chart-wrap bar">
+        <canvas id="coinChart"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Account Breakdown</div>
+      <div class="chart-wrap doughnut">
+        <canvas id="accountChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Positions table -->
+  <section class="panel" style="margin-bottom: 28px">
+    <div class="panel-title">All Open Positions</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Coin</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Price</th>
+            <th>USD Value</th>
+          </tr>
+        </thead>
+        <tbody id="pos-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Data sourced live from Hyperliquid L1 &middot; Refreshes every 30 seconds
+  </footer>
+</div>
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const fmt = n => {
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return (n < 0 ? '-' : '') + '$' + (abs / 1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return (n < 0 ? '-' : '') + '$' + (abs / 1e3).toFixed(1) + 'K';
+  return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const fmtFull = n => '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ── Chart defaults ───────────────────────────────────────────────────────────
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = 'rgba(30,37,51,.6)';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif";
+
+const COLORS = {
+  green: 'rgba(34,197,94,',
+  red:   'rgba(239,68,68,',
+  accent:'rgba(99,102,241,',
+  cyan:  'rgba(6,182,212,',
+  amber: 'rgba(245,158,11,',
+  purple:'rgba(168,85,247,',
+};
+const ACCOUNT_COLORS = [
+  '#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7'
+];
+
+// ── Bar chart: by coin ───────────────────────────────────────────────────────
+const coinCtx = $('#coinChart').getContext('2d');
+const coinChart = new Chart(coinCtx, {
+  type: 'bar',
+  data: { labels: [], datasets: [
+    { label: 'Spot',  data: [], backgroundColor: COLORS.green + '0.7)', borderRadius: 4 },
+    { label: 'Perp',  data: [], backgroundColor: COLORS.red + '0.7)', borderRadius: 4 },
+  ]},
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 16 } },
+      tooltip: {
+        callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtFull(ctx.parsed.y) }
+      }
+    },
+    scales: {
+      y: {
+        ticks: { callback: v => fmt(v) },
+        grid: { color: 'rgba(30,37,51,.5)' }
+      },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── Doughnut chart: by account ───────────────────────────────────────────────
+const acctCtx = $('#accountChart').getContext('2d');
+const accountChart = new Chart(acctCtx, {
+  type: 'doughnut',
+  data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0 }] },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: {
+      legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 12, font: { size: 11 } } },
+      tooltip: {
+        callbacks: { label: ctx => ctx.label + ': ' + fmtFull(ctx.parsed) }
+      }
+    }
+  }
+});
+
+// ── Data fetch & render ──────────────────────────────────────────────────────
+let firstLoad = true;
+
+async function fetchData() {
+  try {
+    const resp = await fetch('/api/data');
+    const data = await resp.json();
+
+    if (!data.last_updated) return;
+
+    // Cards
+    const s = data.summary;
+    $('#card-spot').textContent     = fmt(s.spot_exposure);
+    $('#card-perp').textContent     = fmt(s.perp_exposure);
+    const deltaEl = $('#card-delta');
+    deltaEl.textContent = fmt(s.net_delta);
+    deltaEl.className = 'card-value ' + (s.net_delta >= 0 ? 'positive' : 'negative');
+
+    $('#card-status').innerHTML = s.hedged
+      ? '<span class="badge hedged">HEDGED</span>'
+      : '<span class="badge unhedged">UNHEDGED</span>';
+
+    const fundEl = $('#card-funding');
+    fundEl.textContent = fmtFull(s.total_funding_24h);
+    fundEl.className = 'card-value ' + (s.total_funding_24h >= 0 ? 'positive' : 'negative');
+    $('#card-positions').textContent = s.num_positions + ' positions tracked';
+
+    $('#last-updated').textContent = 'Updated ' + data.last_updated;
+
+    // Bar chart
+    const coins = data.by_coin;
+    coinChart.data.labels = coins.map(c => c.coin);
+    coinChart.data.datasets[0].data = coins.map(c => c.spot);
+    coinChart.data.datasets[1].data = coins.map(c => c.perp);
+    coinChart.update('none');
+
+    // Doughnut chart (gross exposure per account)
+    const accts = data.by_account;
+    accountChart.data.labels = accts.map(a => a.account);
+    accountChart.data.datasets[0].data = accts.map(a => Math.abs(a.spot) + Math.abs(a.perp));
+    accountChart.data.datasets[0].backgroundColor = accts.map((_, i) => ACCOUNT_COLORS[i % ACCOUNT_COLORS.length]);
+    accountChart.update('none');
+
+    // Positions table
+    const tbody = $('#pos-tbody');
+    const rows = data.positions
+      .sort((a, b) => Math.abs(b.usd_value) - Math.abs(a.usd_value))
+      .map(p => `<tr>
+        <td>${p.account}</td>
+        <td><strong>${p.coin}</strong></td>
+        <td><span class="type-badge ${p.type}">${p.type}</span></td>
+        <td>${p.size.toLocaleString()}</td>
+        <td>${fmtFull(p.price)}</td>
+        <td style="color:${p.usd_value >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight:600">${fmtFull(p.usd_value)}</td>
+      </tr>`).join('');
+    tbody.innerHTML = rows;
+
+    // Hide loading
+    if (firstLoad) {
+      $('#loading').classList.add('hidden');
+      firstLoad = false;
+    }
+  } catch (err) {
+    console.error('Fetch error:', err);
+  }
+}
+
+// Initial + interval
+fetchData();
+setInterval(fetchData, 5000);   // poll every 5s (backend caches at 30s)
+</script>
+</body>
+</html>
