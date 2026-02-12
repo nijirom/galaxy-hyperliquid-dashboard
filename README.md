@@ -2,7 +2,7 @@
 
 Live dashboard and CLI tools for tracking Galaxy Digital's on-chain positions on [Hyperliquid L1](https://hyperliquid.xyz).
 
-Monitors 4 verified cluster wallets in real time: spot holdings, perpetual positions, net delta exposure, hedge status, and 24h funding yield.
+Monitors 4 verified cluster wallets in real time: spot holdings, perpetual positions, net delta exposure, hedge status, staking, and 24h funding yield.
 
 
 ---
@@ -16,6 +16,7 @@ Monitors 4 verified cluster wallets in real time: spot holdings, perpetual posit
 | **Net Delta** | Spot + Perp (shorts are negative) |
 | **Hedge Status** | `DELTA NEUTRAL` if net delta < 5% of spot, else `DIRECTIONAL` |
 | **24h Funding** | Cumulative funding payments received in last 24 hours |
+| **Staking** | Total staked HYPE |
 
 Plus an exposure-by-coin bar chart, account allocation breakdown, and a full positions table.
 
