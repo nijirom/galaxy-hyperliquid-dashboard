@@ -1,4 +1,4 @@
-# Galaxy Digital — Hyperliquid Cluster Analysis
+# Galaxy Digital Hyperliquid Cluster Analysis
 
 Live dashboard and CLI tools for tracking Galaxy Digital's on-chain positions on [Hyperliquid L1](https://hyperliquid.xyz).
 
