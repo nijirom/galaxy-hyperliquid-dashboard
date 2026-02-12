@@ -79,10 +79,11 @@
 
   /* ── Metrics strip ────────────────────────────────────────────────── */
   .metrics {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(6, 1fr);
     border-bottom: 1px solid var(--border);
   }
-  @media (max-width: 800px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 960px) { .metrics { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
   .metric {
     padding: 18px 24px;
     border-right: 1px solid var(--border);
@@ -129,6 +130,38 @@
   .chart-area canvas { width: 100% !important; }
   .chart-bar { height: 300px; }
   .chart-donut { height: 260px; }
+  .chart-hbar { height: 220px; }
+
+  /* ── Staking section ─────────────────────────────────────────────── */
+  .staking-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 960px) { .staking-row { grid-template-columns: 1fr; } }
+  .staking-row .col { border-right: 1px solid var(--border); }
+  .staking-row .col:last-child { border-right: none; }
+  .stake-list { padding: 12px 24px; }
+  .stake-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .stake-item:last-child { border-bottom: none; }
+  .stake-item .label {
+    font-family: var(--mono); font-size: .76rem; color: var(--text-dim);
+  }
+  .stake-item .validator {
+    font-family: var(--mono); font-size: .62rem; color: var(--muted);
+    margin-top: 1px;
+  }
+  .stake-item .amount {
+    font-family: var(--mono); font-size: .82rem; font-weight: 600;
+    color: var(--text); text-align: right;
+  }
+  .stake-item .amount .usd {
+    font-size: .68rem; color: var(--muted); font-weight: 400;
+  }
+  .purple { color: #a78bfa !important; }
+  .purple-bg { background: rgba(167,139,250,.06); }
 
   /* ── Table ─────────────────────────────────────────────────────────── */
   .table-section { border-top: 1px solid var(--border); }
@@ -237,6 +270,11 @@
       <div class="metric-val" id="m-funding">—</div>
       <div class="metric-sub" id="m-count">— positions</div>
     </div>
+    <div class="metric">
+      <div class="metric-label">Staked HYPE</div>
+      <div class="metric-val purple" id="m-staked">—</div>
+      <div class="metric-sub" id="m-staked-usd">—</div>
+    </div>
   </div>
 
   <!-- Charts -->
@@ -248,6 +286,20 @@
     <div class="col">
       <div class="section-head">Account Allocation</div>
       <div class="chart-area"><div class="chart-donut"><canvas id="accountChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Staking -->
+  <div class="staking-row">
+    <div class="col">
+      <div class="section-head">Staking by Account</div>
+      <div class="chart-area"><div class="chart-hbar"><canvas id="stakeChart"></canvas></div></div>
+    </div>
+    <div class="col">
+      <div class="section-head">Delegation Details</div>
+      <div class="stake-list" id="stake-list">
+        <div style="padding:24px 0; text-align:center; font-family:var(--mono); font-size:.72rem; color:var(--muted)">Loading staking data…</div>
+      </div>
     </div>
   </div>
 
@@ -331,6 +383,13 @@ const coinChart = new Chart($('#coinChart').getContext('2d'), {
   }
 });
 
+const fmtHype = n => {
+  const a = Math.abs(n), s = n < 0 ? '-' : '';
+  if (a >= 1e6) return s + (a / 1e6).toFixed(2) + 'M';
+  if (a >= 1e3) return s + (a / 1e3).toFixed(1) + 'K';
+  return s + a.toFixed(2);
+};
+
 const ACCT_COLS = ['#e8e8e8', '#00d672', '#ff3b3b', '#666666', '#3b82f6', '#f59e0b'];
 const accountChart = new Chart($('#accountChart').getContext('2d'), {
   type: 'doughnut',
@@ -352,6 +411,30 @@ const accountChart = new Chart($('#accountChart').getContext('2d'), {
   }
 });
 
+// ── Staking chart ────────────────────────────────────────────────────────────
+const stakeChart = new Chart($('#stakeChart').getContext('2d'), {
+  type: 'bar',
+  data: { labels: [], datasets: [
+    { label: 'HYPE Staked', data: [], backgroundColor: 'rgba(167,139,250,.5)', hoverBackgroundColor: 'rgba(167,139,250,.8)', borderRadius: 1, borderSkipped: false }
+  ]},
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111', borderColor: '#222', borderWidth: 1,
+        bodyColor: '#aaa', bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+        padding: 10, cornerRadius: 2,
+        callbacks: { label: ctx => ' ' + fmtHype(ctx.parsed.x) + ' HYPE' }
+      }
+    },
+    scales: {
+      x: { ticks: { callback: v => fmtHype(v), font: { size: 10 } }, grid: { color: '#111' } },
+      y: { grid: { display: false }, ticks: { font: { size: 10, weight: '500' }, color: '#888' } }
+    }
+  }
+});
+
 // ── Data fetch ───────────────────────────────────────────────────────────────
 let firstLoad = true;
 
@@ -363,11 +446,16 @@ async function fetchData() {
     const perpP = entries.map(([, a]) => hlPost({ type: 'clearinghouseState', user: a }));
     const spotP = entries.map(([, a]) => hlPost({ type: 'spotClearinghouseState', user: a }));
     const fundP = entries.map(([, a]) => hlPost({ type: 'userFunding', user: a, startTime }).catch(() => []));
+    const stakeP = entries.map(([, a]) => hlPost({ type: 'delegations', user: a }).catch(() => []));
+    const stakeSumP = entries.map(([, a]) => hlPost({ type: 'delegatorSummary', user: a }).catch(() => ({})));
 
-    const [mids, ...rest] = await Promise.all([midsP, ...perpP, ...spotP, ...fundP]);
-    const perpS = rest.slice(0, entries.length);
-    const spotS = rest.slice(entries.length, entries.length * 2);
-    const fundD = rest.slice(entries.length * 2);
+    const [mids, ...rest] = await Promise.all([midsP, ...perpP, ...spotP, ...fundP, ...stakeP, ...stakeSumP]);
+    const n = entries.length;
+    const perpS = rest.slice(0, n);
+    const spotS = rest.slice(n, n * 2);
+    const fundD = rest.slice(n * 2, n * 3);
+    const stakeD = rest.slice(n * 3, n * 4);
+    const stakeSumD = rest.slice(n * 4, n * 5);
 
     const positions = [], byCoin = {}, byAcct = {};
 
@@ -398,6 +486,34 @@ async function fetchData() {
     let totalFund = 0;
     fundD.forEach(ev => { if (Array.isArray(ev)) totalFund += ev.reduce((s, e) => s + parseFloat(e.delta?.usdc || e.usdc || 0), 0); });
 
+    // Staking
+    const hypePrice = parseFloat(mids['HYPE'] || 0);
+    const stakeByAcct = {};
+    const allDelegations = [];
+    let totalStaked = 0;
+
+    entries.forEach(([label], i) => {
+      let acctStake = 0;
+      const delegations = Array.isArray(stakeD[i]) ? stakeD[i] : [];
+      for (const d of delegations) {
+        const amt = parseFloat(d.amount || d.lockedUntilTimestamp ? 0 : 0) || parseFloat(d.amount || 0);
+        if (amt > 0) {
+          acctStake += amt;
+          const validator = d.validator || d.validatorAddress || 'Unknown';
+          const shortVal = validator.slice(0, 6) + '…' + validator.slice(-4);
+          allDelegations.push({ account: label, validator: shortVal, validatorFull: validator, amount: amt });
+        }
+      }
+      // Also check delegatorSummary for total
+      const summary = stakeSumD[i] || {};
+      const summaryTotal = parseFloat(summary.totalDelegated || summary.delegated || 0);
+      if (summaryTotal > 0 && acctStake === 0) acctStake = summaryTotal;
+      if (summaryTotal > acctStake) acctStake = summaryTotal;
+
+      stakeByAcct[label] = acctStake;
+      totalStaked += acctStake;
+    });
+
     // Metrics
     $('#m-spot').textContent = fmt(spotV);
     $('#m-perp').textContent = fmt(perpV);
@@ -427,6 +543,45 @@ async function fetchData() {
     accountChart.data.datasets[0].data = al.map(a => Math.abs(a[1].spot) + Math.abs(a[1].perp));
     accountChart.data.datasets[0].backgroundColor = al.map((_, i) => ACCT_COLS[i % ACCT_COLS.length]);
     accountChart.update('none');
+
+    // Staking metric
+    $('#m-staked').textContent = fmtHype(totalStaked) + ' HYPE';
+    const stakeUsd = totalStaked * hypePrice;
+    $('#m-staked-usd').textContent = stakeUsd > 0 ? '≈ ' + fmtD(stakeUsd) : '—';
+
+    // Staking chart
+    const stakeEntries = Object.entries(stakeByAcct).filter(([, v]) => v > 0);
+    stakeChart.data.labels = stakeEntries.map(e => e[0]);
+    stakeChart.data.datasets[0].data = stakeEntries.map(e => +e[1].toFixed(2));
+    stakeChart.update('none');
+
+    // Delegation detail list
+    const stakeListEl = $('#stake-list');
+    if (allDelegations.length > 0) {
+      stakeListEl.innerHTML = allDelegations
+        .sort((a, b) => b.amount - a.amount)
+        .map(d => `<div class="stake-item">
+          <div>
+            <div class="label">${d.account}</div>
+            <div class="validator">${d.validator}</div>
+          </div>
+          <div class="amount">
+            ${fmtHype(d.amount)} HYPE
+            <div class="usd">${fmtD(d.amount * hypePrice)}</div>
+          </div>
+        </div>`).join('');
+    } else if (totalStaked > 0) {
+      // Summary-only mode (no individual delegation breakdown)
+      stakeListEl.innerHTML = Object.entries(stakeByAcct)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([acct, amt]) => `<div class="stake-item">
+          <div><div class="label">${acct}</div><div class="validator">via delegatorSummary</div></div>
+          <div class="amount">${fmtHype(amt)} HYPE<div class="usd">${fmtD(amt * hypePrice)}</div></div>
+        </div>`).join('');
+    } else {
+      stakeListEl.innerHTML = '<div style="padding:24px 0; text-align:center; font-family:var(--mono); font-size:.72rem; color:var(--muted)">No active staking delegations</div>';
+    }
 
     // Table
     $('#pos-tbody').innerHTML = positions
