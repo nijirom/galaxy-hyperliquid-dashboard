@@ -2,32 +2,10 @@
 
 Live dashboard and CLI tools for tracking Galaxy Digital's on-chain positions on [Hyperliquid L1](https://hyperliquid.xyz).
 
-Monitors 4 verified cluster wallets in real time — spot holdings, perpetual positions, net delta exposure, hedge status, and 24h funding yield.
+Monitors 4 verified cluster wallets in real time: spot holdings, perpetual positions, net delta exposure, hedge status, and 24h funding yield.
 
-![Python](https://img.shields.io/badge/python-3.10+-333?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-333)
 
 ---
-
-## Live Dashboard
-
-A static site that calls the Hyperliquid API directly from the browser. No backend required.
-
-**Deploy to Netlify:**
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/nijirom/galaxy-hyperliquid-dashboard)
-
-Or run locally:
-
-```bash
-# Flask dev server (Python)
-pip install -r requirements.txt
-python app.py
-# → http://localhost:5000
-
-# Or just open the static file
-open public/index.html
-```
 
 ### What it shows
 
@@ -45,7 +23,7 @@ Plus an exposure-by-coin bar chart, account allocation breakdown, and a full pos
 
 ## CLI Tools
 
-### `report.py` — Cluster audit
+### `report.py` 
 
 Prints a snapshot of Galaxy's current exposure and hedge status.
 
@@ -61,7 +39,7 @@ NET CLUSTER DELTA:    $-21,783,500.83
 Status: DIRECTIONAL EXPOSURE (Unhedged)
 ```
 
-### `funding.py` — Funding yield
+### `funding.py`
 
 Calculates realized funding across all cluster accounts.
 
